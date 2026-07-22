@@ -15,6 +15,8 @@ import {
   Table,
 } from "react-bootstrap";
 
+import { API_BASE } from "../lib/api";
+
 type FileItem = {
   id: string;
   title: string;
@@ -37,7 +39,6 @@ type AlertItem = {
   message: string;
   created_at: string;
 };
-
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("ru-RU", {
@@ -92,9 +93,16 @@ export default function Page() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [editingFile, setEditingFile] = useState<FileItem | null>(null);
+  const [deletingFile, setDeletingFile] = useState<FileItem | null>(null);
   const [title, setTitle] = useState("");
+  const [editTitle, setEditTitle] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+  const [isDeleteSubmitting, setIsDeleteSubmitting] = useState(false);
 
   async function loadData() {
     setIsLoading(true);
@@ -102,8 +110,8 @@ export default function Page() {
 
     try {
       const [filesResponse, alertsResponse] = await Promise.all([
-        fetch(`http://localhost:8000/files`, { cache: "no-store" }),
-        fetch(`http://localhost:8000/alerts`, { cache: "no-store" }),
+        fetch(`${API_BASE}/files`, { cache: "no-store" }),
+        fetch(`${API_BASE}/alerts`, { cache: "no-store" }),
       ]);
 
       if (!filesResponse.ok || !alertsResponse.ok) {
@@ -144,7 +152,7 @@ export default function Page() {
     formData.append("file", selectedFile);
 
     try {
-      const response = await fetch(`http://localhost:8000/files`, {
+      const response = await fetch(`${API_BASE}/files`, {
         method: "POST",
         body: formData,
       });
@@ -161,6 +169,77 @@ export default function Page() {
       setErrorMessage(error instanceof Error ? error.message : "Произошла ошибка");
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  function openEditModal(file: FileItem) {
+    setEditingFile(file);
+    setEditTitle(file.title);
+    setShowEditModal(true);
+  }
+
+  function openDeleteModal(file: FileItem) {
+    setDeletingFile(file);
+    setShowDeleteModal(true);
+  }
+
+  async function handleEditSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!editingFile || !editTitle.trim()) {
+      setErrorMessage("Укажите название");
+      return;
+    }
+
+    setIsEditSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      const response = await fetch(`${API_BASE}/files/${editingFile.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: editTitle.trim() }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Не удалось обновить название");
+      }
+
+      setShowEditModal(false);
+      setEditingFile(null);
+      setEditTitle("");
+      await loadData();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Произошла ошибка");
+    } finally {
+      setIsEditSubmitting(false);
+    }
+  }
+
+  async function handleDeleteConfirm() {
+    if (!deletingFile) {
+      return;
+    }
+
+    setIsDeleteSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      const response = await fetch(`${API_BASE}/files/${deletingFile.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Не удалось удалить файл");
+      }
+
+      setShowDeleteModal(false);
+      setDeletingFile(null);
+      await loadData();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Произошла ошибка");
+    } finally {
+      setIsDeleteSubmitting(false);
     }
   }
 
@@ -213,13 +292,13 @@ export default function Page() {
                     <thead className="table-light">
                       <tr>
                         <th>Название</th>
+                        <th>Действия</th>
                         <th>Файл</th>
                         <th>MIME</th>
                         <th>Размер</th>
                         <th>Статус</th>
                         <th>Проверка</th>
                         <th>Создан</th>
-                        <th></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -235,6 +314,32 @@ export default function Page() {
                             <td>
                               <div className="fw-semibold">{file.title}</div>
                               <div className="small text-secondary">{file.id}</div>
+                            </td>
+                            <td style={{ minWidth: "220px" }}>
+                              <div className="d-flex flex-column gap-1">
+                                <Button
+                                  as="a"
+                                  href={`${API_BASE}/files/${file.id}/download`}
+                                  variant="outline-primary"
+                                  size="sm"
+                                >
+                                  Скачать
+                                </Button>
+                                <Button
+                                  variant="outline-secondary"
+                                  size="sm"
+                                  onClick={() => openEditModal(file)}
+                                >
+                                  Изменить
+                                </Button>
+                                <Button
+                                  variant="outline-danger"
+                                  size="sm"
+                                  onClick={() => openDeleteModal(file)}
+                                >
+                                  Удалить
+                                </Button>
+                              </div>
                             </td>
                             <td>{file.original_name}</td>
                             <td>{file.mime_type}</td>
@@ -255,16 +360,6 @@ export default function Page() {
                               </div>
                             </td>
                             <td>{formatDate(file.created_at)}</td>
-                            <td className="text-nowrap">
-                              <Button
-                                as="a"
-                                href={`http://localhost:8000/files/${file.id}/download`}
-                                variant="outline-primary"
-                                size="sm"
-                              >
-                                Скачать
-                              </Button>
-                            </td>
                           </tr>
                         ))
                       )}
@@ -361,6 +456,74 @@ export default function Page() {
             </Button>
           </Modal.Footer>
         </Form>
+      </Modal>
+
+      <Modal
+        show={showEditModal}
+        onHide={() => setShowEditModal(false)}
+        centered
+      >
+        <Form onSubmit={handleEditSubmit}>
+          <Modal.Header closeButton>
+            <Modal.Title>Изменить название</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            {editingFile ? (
+              <p className="small text-secondary mb-3">{editingFile.original_name}</p>
+            ) : null}
+            <Form.Group>
+              <Form.Label>Название</Form.Label>
+              <Form.Control
+                value={editTitle}
+                onChange={(event) => setEditTitle(event.target.value)}
+                maxLength={255}
+                placeholder="Например, Договор с подрядчиком"
+              />
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="outline-secondary" onClick={() => setShowEditModal(false)}>
+              Отмена
+            </Button>
+            <Button type="submit" variant="primary" disabled={isEditSubmitting}>
+              {isEditSubmitting ? "Сохранение..." : "Сохранить"}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+
+      <Modal
+        show={showDeleteModal}
+        onHide={() => setShowDeleteModal(false)}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Удалить файл</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {deletingFile ? (
+            <>
+              <p className="mb-2">
+                Удалить файл <span className="fw-semibold">{deletingFile.title}</span>?
+              </p>
+              <p className="small text-secondary mb-0">
+                Будут удалены связанные алерты. Это действие нельзя отменить.
+              </p>
+            </>
+          ) : null}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="outline-secondary" onClick={() => setShowDeleteModal(false)}>
+            Отмена
+          </Button>
+          <Button
+            variant="danger"
+            disabled={isDeleteSubmitting}
+            onClick={() => void handleDeleteConfirm()}
+          >
+            {isDeleteSubmitting ? "Удаление..." : "Удалить"}
+          </Button>
+        </Modal.Footer>
       </Modal>
     </Container>
   );

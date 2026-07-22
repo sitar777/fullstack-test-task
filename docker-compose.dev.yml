@@ -25,7 +25,7 @@ services:
     image: postgres:latest
     container_name: backend-db
     ports:
-      - "5433:5433"
+      - "5433:5432"
     env_file: ".env.dev"
     volumes:
       - backend-db-volume:/var/lib/postgresql
@@ -35,10 +35,13 @@ services:
     container_name: backend-redis
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm ci && npm run dev"
     container_name: frontend
+    env_file: ".env.dev"
+    volumes:
+      - ./frontend:/app
     ports:
       - "3000:3000"
 

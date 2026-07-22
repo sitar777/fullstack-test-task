@@ -38,6 +38,7 @@ async def create_file_view(
     return file_item
 
 
+# TODO not used maybe delete
 @router.get("/files/{file_id}", response_model=FileItem)
 async def get_file_view(file_id: str):
     return await get_file(file_id)
