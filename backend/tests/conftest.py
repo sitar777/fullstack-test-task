@@ -134,7 +134,7 @@ def mock_session_maker(mock_session, monkeypatch):
 
 @pytest.fixture
 async def test_client(mock_session_maker, temp_storage, mocker):
-    mocker.patch("src.api.routes.files.scan_file_for_threats.delay")
+    mocker.patch("src.api.routes.files.process_uploaded_file.delay")
 
     from src.app import app
 

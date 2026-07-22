@@ -23,7 +23,7 @@ async def test_list_files_returns_200(test_client, mock_session_maker):
 
 
 async def test_create_file_returns_201_and_triggers_scan(test_client, mock_session_maker, mocker):
-    delay = mocker.patch("src.api.routes.files.scan_file_for_threats.delay")
+    delay = mocker.patch("src.api.routes.files.process_uploaded_file.delay")
 
     response = await test_client.post(
         "/files",

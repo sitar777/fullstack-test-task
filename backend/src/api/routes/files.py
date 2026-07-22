@@ -13,7 +13,7 @@ from src.services.file_service import (
     list_files,
     update_file,
 )
-from src.tasks import scan_file_for_threats
+from src.tasks import process_uploaded_file
 
 router = APIRouter(tags=["files"])
 
@@ -34,7 +34,7 @@ async def create_file_view(
         filename=upload.filename,
         content_type=upload.content_type,
     )
-    scan_file_for_threats.delay(file_item.id)
+    process_uploaded_file.delay(file_item.id)
     return file_item
 
 
