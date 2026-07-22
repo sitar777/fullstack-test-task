@@ -1,10 +1,12 @@
-from fastapi import FastAPI, HTTPException
-from fastapi import File, Form, UploadFile
+from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from starlette import status
+
+from src.exceptions import EmptyFile, FileNotFound, FileTooLarge, StoredFileNotFound
 from src.schemas import AlertItem, FileItem, FileUpdate
-from src.service import create_file, delete_file, get_file, list_alerts, list_files, update_file, STORAGE_DIR
+from src.services.alert_service import list_alerts
+from src.services.file_service import create_file, delete_file, get_file, get_file_path, list_files, update_file
 from src.tasks import scan_file_for_threats
 
 app = FastAPI()
@@ -18,6 +20,26 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(FileNotFound)
+async def handle_file_not_found(request, exc):
+    return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"detail": "File not found"})
+
+
+@app.exception_handler(StoredFileNotFound)
+async def handle_stored_file_not_found(request, exc):
+    return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"detail": "Stored file not found"})
+
+
+@app.exception_handler(EmptyFile)
+async def handle_empty_file(request, exc):
+    return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"detail": "File is empty"})
+
+
+@app.exception_handler(FileTooLarge)
+async def handle_file_too_large(request, exc):
+    return JSONResponse(status_code=status.HTTP_413_CONTENT_TOO_LARGE, content={"detail": "File is too large"})
 
 
 @app.get("/files", response_model=list[FileItem])
@@ -55,10 +77,7 @@ async def update_file_view(
 
 @app.get("/files/{file_id}/download")
 async def download_file(file_id: str):
-    file_item = await get_file(file_id)
-    stored_path = STORAGE_DIR / file_item.stored_name
-    if not stored_path.exists():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stored file not found")
+    file_item, stored_path = await get_file_path(file_id)
     return FileResponse(
         path=stored_path,
         media_type=file_item.mime_type,

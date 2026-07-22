@@ -88,7 +88,7 @@ def temp_storage(tmp_path, monkeypatch):
     storage_dir = tmp_path / "files"
     storage_dir.mkdir()
     monkeypatch.setattr("src.config.STORAGE_DIR", storage_dir)
-    monkeypatch.setattr("src.service.STORAGE_DIR", storage_dir)
+    monkeypatch.setattr("src.services.file_service.STORAGE_DIR", storage_dir)
     monkeypatch.setattr("src.tasks.STORAGE_DIR", storage_dir)
     return storage_dir
 
@@ -113,7 +113,8 @@ def mock_session_maker(mock_session, monkeypatch):
 
     maker = MagicMock(return_value=context_manager)
     monkeypatch.setattr("src.db.async_session_maker", maker)
-    monkeypatch.setattr("src.service.async_session_maker", maker)
+    monkeypatch.setattr("src.services.file_service.async_session_maker", maker)
+    monkeypatch.setattr("src.services.alert_service.async_session_maker", maker)
     monkeypatch.setattr("src.tasks.async_session_maker", maker)
     return maker, mock_session
 

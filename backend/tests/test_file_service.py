@@ -1,26 +1,23 @@
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
-from fastapi import HTTPException
 
-from src.service import create_file, delete_file
+from src.exceptions import EmptyFile, FileTooLarge
+from src.services.file_service import create_file, delete_file
 from tests.conftest import make_stored_file, make_upload_file
 
 
 async def test_create_file_rejects_empty_content(mock_session_maker, temp_storage):
     upload = make_upload_file(b"")
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(EmptyFile):
         await create_file(title="Empty", upload_file=upload)
-
-    assert exc_info.value.status_code == 400
-    assert exc_info.value.detail == "File is empty"
 
 
 async def test_create_file_rejects_title_over_255_chars(mock_session_maker, temp_storage):
     upload = make_upload_file(b"hello")
 
-    with pytest.raises((HTTPException, ValueError)):
+    with pytest.raises(ValueError):
         await create_file(title="a" * 256, upload_file=upload)
 
 
@@ -85,8 +82,7 @@ async def test_delete_file_removes_disk_after_db_commit(mock_session_maker, temp
 async def test_create_file_rejects_over_10mb(mock_session_maker, temp_storage):
     upload = make_upload_file(b"x" * (10 * 1024 * 1024 + 1))
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(FileTooLarge):
         await create_file(title="Large", upload_file=upload)
 
-    assert exc_info.value.status_code in {400, 413}
     assert list(temp_storage.iterdir()) == []
