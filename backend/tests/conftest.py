@@ -9,12 +9,10 @@ os.environ.setdefault("PGPORT", "5432")
 os.environ.setdefault("POSTGRES_DB", "test")
 
 from datetime import datetime, timezone
-from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
-from fastapi import UploadFile
 from httpx import ASGITransport, AsyncClient
 
 from src.models import Alert, StoredFile
@@ -67,19 +65,6 @@ def make_alert(
         level=level,
         message=message,
         created_at=datetime.now(timezone.utc),
-    )
-
-
-def make_upload_file(
-    content: bytes,
-    *,
-    filename: str = "test.txt",
-    content_type: str = "text/plain",
-) -> UploadFile:
-    return UploadFile(
-        file=BytesIO(content),
-        filename=filename,
-        headers={"content-type": content_type},
     )
 
 

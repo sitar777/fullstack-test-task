@@ -1,8 +1,5 @@
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
-from fastapi import HTTPException
-
 from tests.conftest import make_stored_file
 
 

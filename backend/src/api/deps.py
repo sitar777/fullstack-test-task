@@ -1,20 +1,11 @@
-from collections.abc import AsyncIterator
-
 from fastapi import FastAPI, File, UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
-from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
-from src.db import async_session_maker
 from src.exceptions import FileNotFound, StoredFileNotFound
 from src.schemas import ValidatedUpload
-
-
-async def get_session() -> AsyncIterator[AsyncSession]:
-    async with async_session_maker() as session:
-        yield session
 
 
 async def get_validated_upload(file: UploadFile = File(...)) -> ValidatedUpload:
