@@ -1,8 +1,18 @@
-from fastapi import APIRouter, File, Form, UploadFile
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Form
 from fastapi.responses import FileResponse
 
-from src.schemas import FileItem, FileUpdate
-from src.services.file_service import create_file, delete_file, get_file, get_file_path, list_files, update_file
+from src.api.deps import get_validated_upload
+from src.schemas import FileItem, FileUpdate, Title, ValidatedUpload
+from src.services.file_service import (
+    create_file,
+    delete_file,
+    get_file,
+    get_file_path,
+    list_files,
+    update_file,
+)
 from src.tasks import scan_file_for_threats
 
 router = APIRouter(tags=["files"])
@@ -15,10 +25,15 @@ async def list_files_view():
 
 @router.post("/files", response_model=FileItem, status_code=201)
 async def create_file_view(
-    title: str = Form(...),
-    file: UploadFile = File(...),
+    title: Annotated[Title, Form()],
+    upload: Annotated[ValidatedUpload, Depends(get_validated_upload)],
 ):
-    file_item = await create_file(title=title, upload_file=file)
+    file_item = await create_file(
+        title=title,
+        content=upload.content,
+        filename=upload.filename,
+        content_type=upload.content_type,
+    )
     scan_file_for_threats.delay(file_item.id)
     return file_item
 

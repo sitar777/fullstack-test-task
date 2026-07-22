@@ -97,12 +97,25 @@ def temp_storage(tmp_path, monkeypatch):
 def mock_session():
     session = AsyncMock()
     session.get = AsyncMock(return_value=None)
-    session.execute = AsyncMock()
+    execute_result = MagicMock()
+    execute_result.scalars.return_value.all.return_value = []
+    session.execute = AsyncMock(return_value=execute_result)
     session.add = MagicMock()
     session.delete = AsyncMock()
     session.commit = AsyncMock()
-    session.refresh = AsyncMock(side_effect=lambda obj: obj)
+    session.refresh = AsyncMock(side_effect=_refresh_model)
     return session
+
+
+def _refresh_model(obj):
+    now = datetime.now(timezone.utc)
+    if getattr(obj, "created_at", None) is None:
+        obj.created_at = now
+    if getattr(obj, "updated_at", None) is None:
+        obj.updated_at = now
+    if getattr(obj, "requires_attention", None) is None:
+        obj.requires_attention = False
+    return obj
 
 
 @pytest.fixture

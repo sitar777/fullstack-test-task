@@ -23,7 +23,7 @@ async def test_list_files_returns_200(test_client, mock_session_maker):
 
 
 async def test_create_file_returns_201_and_triggers_scan(test_client, mock_session_maker, mocker):
-    delay = mocker.patch("src.app.scan_file_for_threats.delay")
+    delay = mocker.patch("src.api.routes.files.scan_file_for_threats.delay")
 
     response = await test_client.post(
         "/files",
@@ -60,6 +60,36 @@ async def test_patch_file_updates_title(test_client, mock_session_maker):
 
     assert response.status_code == 200
     assert response.json()["title"] == "New title"
+
+
+async def test_create_file_422_for_long_title(test_client):
+    response = await test_client.post(
+        "/files",
+        data={"title": "a" * 256},
+        files={"file": ("notes.txt", b"hello", "text/plain")},
+    )
+
+    assert response.status_code == 422
+
+
+async def test_create_file_422_for_empty_content(test_client):
+    response = await test_client.post(
+        "/files",
+        data={"title": "Empty file"},
+        files={"file": ("notes.txt", b"", "text/plain")},
+    )
+
+    assert response.status_code == 422
+
+
+async def test_create_file_422_for_oversized_content(test_client):
+    response = await test_client.post(
+        "/files",
+        data={"title": "Large file"},
+        files={"file": ("notes.txt", b"x" * (10 * 1024 * 1024 + 1), "text/plain")},
+    )
+
+    assert response.status_code == 422
 
 
 async def test_patch_file_422_for_long_title(test_client):

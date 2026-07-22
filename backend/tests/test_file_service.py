@@ -1,45 +1,38 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.exceptions import EmptyFile, FileTooLarge
 from src.services.file_service import create_file, delete_file
-from tests.conftest import make_stored_file, make_upload_file
-
-
-async def test_create_file_rejects_empty_content(mock_session_maker, temp_storage):
-    upload = make_upload_file(b"")
-
-    with pytest.raises(EmptyFile):
-        await create_file(title="Empty", upload_file=upload)
-
-
-async def test_create_file_rejects_title_over_255_chars(mock_session_maker, temp_storage):
-    upload = make_upload_file(b"hello")
-
-    with pytest.raises(ValueError):
-        await create_file(title="a" * 256, upload_file=upload)
+from tests.conftest import make_alert, make_stored_file
 
 
 async def test_create_file_cleans_up_disk_on_db_failure(mock_session_maker, temp_storage):
     _, mock_session = mock_session_maker
     mock_session.commit = AsyncMock(side_effect=RuntimeError("db error"))
 
-    upload = make_upload_file(b"hello")
-
     with pytest.raises(RuntimeError, match="db error"):
-        await create_file(title="Test", upload_file=upload)
+        await create_file(
+            title="Test",
+            content=b"hello",
+            filename="test.txt",
+            content_type="text/plain",
+        )
 
     assert list(temp_storage.iterdir()) == []
 
 
 async def test_delete_file_succeeds_when_alerts_exist(mock_session_maker, temp_storage):
     file_item = make_stored_file()
+    alert = make_alert(file_id=file_item.id)
     stored_path = temp_storage / file_item.stored_name
     stored_path.write_bytes(b"hello")
 
     _, mock_session = mock_session_maker
     mock_session.get = AsyncMock(return_value=file_item)
+
+    alert_result = MagicMock()
+    alert_result.scalars.return_value.all.return_value = [alert]
+    mock_session.execute = AsyncMock(return_value=alert_result)
 
     deleted_types: list[str] = []
 
@@ -77,12 +70,3 @@ async def test_delete_file_removes_disk_after_db_commit(mock_session_maker, temp
 
     assert commit_calls == ["commit"]
     assert not stored_path.exists()
-
-
-async def test_create_file_rejects_over_10mb(mock_session_maker, temp_storage):
-    upload = make_upload_file(b"x" * (10 * 1024 * 1024 + 1))
-
-    with pytest.raises(FileTooLarge):
-        await create_file(title="Large", upload_file=upload)
-
-    assert list(temp_storage.iterdir()) == []

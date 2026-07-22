@@ -26,6 +26,6 @@ async def save(session: AsyncSession, file_item: StoredFile) -> StoredFile:
     return file_item
 
 
-async def delete(session: AsyncSession, file_item: StoredFile) -> None:
+async def remove(session: AsyncSession, file_item: StoredFile) -> None:
     await session.delete(file_item)
     await session.commit()

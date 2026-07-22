@@ -91,6 +91,10 @@ async def _send_file_alert(file_id: str) -> None:
         if not file_item:
             return
 
+        existing_alert = await alert_repository.get_by_file_id(session, file_id)
+        if existing_alert:
+            return
+
         if file_item.processing_status == "failed":
             alert = Alert(file_id=file_id, level="critical", message="File processing failed")
         elif file_item.requires_attention:

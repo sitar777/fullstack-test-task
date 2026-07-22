@@ -12,3 +12,6 @@ DB_URL = (
 )
 
 REDIS_URL = os.environ.get("REDIS_URL", "redis://backend-redis:6379/0")
+
+MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024
+MAX_TITLE_LENGTH = 255
